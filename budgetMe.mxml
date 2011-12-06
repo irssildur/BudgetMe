@@ -1,0 +1,571 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009"
+					   xmlns:s="library://ns.adobe.com/flex/spark"
+					   xmlns:mx="library://ns.adobe.com/flex/mx"
+					   xmlns:myComp="myComp.*"
+					   width="1200" height="800" 
+					   creationComplete="applicationInit()"
+					   applicationComplete="applicationComplete()">
+	<s:layout>
+		<s:VerticalLayout/>
+	</s:layout>
+	<fx:Script>
+		<![CDATA[
+			import flash.data.SQLConnection;
+			import flash.events.*;
+			import flash.events.SQLErrorEvent;
+			import flash.events.SQLEvent;
+			import flash.filesystem.File;
+			
+			import flashx.textLayout.events.*;
+			import flashx.textLayout.operations.*;
+			
+			import mx.collections.*;
+			import mx.events.*;
+			
+			import spark.events.TextOperationEvent;
+			
+			
+			
+			public var conn:SQLConnection;
+			
+			[Bindable]
+			public var outDataProvider:ArrayCollection;
+			
+			[Bindable]
+			public var categoryDataProvider:ArrayCollection = new ArrayCollection(new Array("asdf", "assdf", "asssdf", "beee"));;
+			
+			
+			public function applicationInit():void
+			{
+				
+				trace("Init!");
+				
+				
+				
+				
+				
+				
+				var tables:Array = new Array(
+					"CREATE TABLE IF NOT EXISTS category (category_id INTEGER PRIMARY KEY AUTOINCREMENT, category_type_id INTEGER, category_name TEXT);",
+					"CREATE TABLE IF NOT EXISTS category_type (category_type_id INTEGER PRIMARY KEY AUTOINCREMENT, category_type_name TEXT);",
+					"CREATE TABLE IF NOT EXISTS in_from (in_from_id INTEGER PRIMARY KEY AUTOINCREMENT, in_from_name TEXT);",
+					"CREATE TABLE IF NOT EXISTS income (income_id INTEGER PRIMARY KEY AUTOINCREMENT, in_from_id INTEGER, category_id INTEGER, income_value NUMERIC, income_date DATE, income_comment TEXT);",
+					"CREATE TABLE IF NOT EXISTS out (out_id INTEGER PRIMARY KEY AUTOINCREMENT, out_to_id INTEGER, category_id INTEGER, out_value NUMERIC, out_date DATE, out_comment TEXT);",
+					"CREATE TABLE IF NOT EXISTS out_to (out_to_id INTEGER PRIMARY KEY AUTOINCREMENT, out_to_name TEXT);"
+				);
+				
+				
+				conn = new SQLConnection();
+				
+				// The database file is in the application storage directory 
+				var folder:File = File.applicationStorageDirectory; 
+				var dbFile:File = folder.resolvePath("DBSample.db"); 
+				
+				
+				try 
+				{ 
+					conn.open(dbFile); 
+					trace("the database was created successfully"); 
+				} 
+				catch (error:SQLError) 
+				{ 
+					trace("Error message:", error.message); 
+					trace("Details:", error.details); 
+				} 
+				
+				
+				var statements:Array = new Array();
+				
+				
+				for each (var sql:String in tables)
+				{
+					
+					statements.push(new SQLStatement()); 
+					statements[statements.length-1].sqlConnection = conn; 
+					
+					
+					
+					
+					statements[statements.length-1].text = sql; 
+					
+					statements[statements.length-1].addEventListener(SQLEvent.RESULT, createResult); 
+					statements[statements.length-1].addEventListener(SQLErrorEvent.ERROR, createError); 
+					
+					statements[statements.length-1].execute(); 
+					
+				}
+				
+				//category_reload();
+				categoryQuery();
+			} 
+			
+			
+			public function applicationComplete():void
+			{
+				//////////////////////////////////////////
+				//////////////////////////////////////////
+				
+				
+				var statement:Array = new Array();
+				var tables:Array = new Array();
+				
+				tables.push("INSERT INTO category (category_name) VALUES (\"kaja\");");
+				tables.push("INSERT INTO category (category_name) VALUES (\"pia\");");
+				tables.push("INSERT INTO category (category_name) VALUES (\"cigi\");");
+				tables.push("INSERT INTO category (category_name) VALUES (\"kocsi\");");
+				tables.push("INSERT INTO category (category_name) VALUES (\"egyeb\");");
+				
+				
+				for each (var sql:String in tables)
+				{
+				
+				statement.push(new SQLStatement()); 
+				statement[statement.length-1].sqlConnection = conn; 
+				
+				
+			
+				
+				
+				statement[statement.length-1].text = sql;
+				
+				
+				statement[statement.length-1].addEventListener(SQLEvent.RESULT, categoryQueryResult); 
+				statement[statement.length-1].addEventListener(SQLErrorEvent.ERROR, createError); 
+				
+			//	statement[statement.length-1].execute();
+				}
+			}
+			
+			
+			
+			
+			private function categoryQuery():void
+			{
+				
+				var statement:SQLStatement = new SQLStatement(); 
+				statement.sqlConnection = conn; 
+				
+				
+				var sql:String = "SELECT * FROM category ORDER BY category_name;";
+				
+				
+				statement.text = sql;
+				
+				
+				statement.addEventListener(SQLEvent.RESULT, categoryQueryResult); 
+				statement.addEventListener(SQLErrorEvent.ERROR, createError); 
+				
+				statement.execute();
+			}
+			
+			
+			private function categoryQueryResult(event:SQLEvent):void
+			{
+				var result:Array = event.target.getResult().data;
+				
+				
+				
+				categoryDataProvider = new ArrayCollection(result);
+				
+				trace("categoryDP", categoryDataProvider[0]["category_id"]);
+				
+				
+				
+				
+				
+			}
+			
+			
+			private function createResult(event:SQLEvent):void 
+			{ 
+				trace("Table created "+event.target.toString());
+				out_reload();
+			} 
+			
+			private function createError(event:SQLErrorEvent):void 
+			{ 
+				trace("Error message:", event.error.message); 
+				trace("Details:", event.error.details); 
+				
+				
+			}
+			
+			private function outQueryResult(event:SQLEvent):void
+			{
+				var result:Array = event.target.getResult().data;
+				
+				
+				
+				outDataProvider = new ArrayCollection(result);
+				
+				
+				
+				
+				
+			}
+			
+			private function out_reload():void
+			{
+				
+				var statement:SQLStatement = new SQLStatement(); 
+				statement.sqlConnection = conn; 
+				
+				
+				var sql:String = "SELECT * FROM out ORDER BY out_date;";
+				
+				
+				statement.text = sql;
+				
+				
+				statement.addEventListener(SQLEvent.RESULT, outQueryResult); 
+				statement.addEventListener(SQLErrorEvent.ERROR, createError); 
+				
+				statement.execute();
+			}
+			
+			
+			
+			private function category_reload():void
+			{
+				
+				var statement:SQLStatement = new SQLStatement(); 
+				statement.sqlConnection = conn; 
+				
+				
+				var sql:String = "SELECT * FROM category;";
+				
+				
+				statement.text = sql;
+				
+				
+				statement.addEventListener(SQLEvent.RESULT, categoryQueryResult); 
+				statement.addEventListener(SQLErrorEvent.ERROR, createError); 
+				
+				statement.execute();
+			}
+			
+			
+			
+			protected function addIncomeBtn_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				
+			}
+			
+			
+			
+			protected function out_submit_clickHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				
+				var outdate:Date = out_date.selectedDate;
+				var outvalue:Number = Number(out_value.text);
+				var outcomment:String = out_comment.text;
+				
+				
+				//out_adg.scroller.verticalScrollBar.value = out_adg.scroller.verticalScrollBar.maximum;
+				
+				trace(outdate);
+				trace(outvalue);
+				trace(outcomment);
+				
+				var statement:SQLStatement = new SQLStatement(); 
+				statement.sqlConnection = conn; 
+				
+				
+				var sql:String = "INSERT INTO out (out_value, out_date, out_comment) VALUES ( :outvalue, :outdate, :outcomment);";
+				
+				
+				statement.text = sql;
+				statement.parameters[":outvalue"] = outvalue;
+				statement.parameters[":outdate"] = outdate;
+				statement.parameters[":outcomment"] = outcomment;
+				
+				statement.addEventListener(SQLEvent.RESULT, createResult); 
+				statement.addEventListener(SQLErrorEvent.ERROR, createError); 
+				
+				statement.execute(); 
+				
+				
+				
+			}
+			
+			
+			
+			
+			
+			
+			
+			
+			public function rowSelected(evt:ListEvent):void
+			{
+				
+				trace("selected item ID: ", evt.target.selectedIndex);
+				trace("outDP: ", outDataProvider[evt.target.selectedIndex].out_value );
+				//trace(outDataProvider.length);
+			}
+			
+		
+			
+			
+			protected function categories_selected(event:Event):void
+			{
+				// TODO Auto-generated method stub
+				
+				categoryDataProvider = new ArrayCollection(new Array("asdf", "assdf", "asssdf", "beee"));
+				
+				//acti.innerArrayCollection = categoryDataProvider;
+			}
+			
+		]]>
+	</fx:Script>
+	<s:states>
+		<s:State name="state1"/>
+		<s:State name="state2"/>
+	</s:states>
+	
+	<fx:Declarations>
+		<!-- Place non-visual elements (e.g., services, value objects) here -->
+		
+		
+		<mx:DateFormatter id="formatDateTime" formatString="YYY-MM-DD"/>
+		
+		
+		
+	</fx:Declarations>
+	<s:TabBar x="92" y="8" width="263" height="36" dataProvider="{viewstack1}"/>
+	<mx:ViewStack id="viewstack1" x="91" y="47" width="1278" height="590">
+		<s:NavigatorContent width="100%" height="100%" label="Bevétel">
+			<s:DataGrid x="0" y="1" width="1000" height="414" requestedRowCount="4">
+				<s:columns>
+					<s:ArrayList>
+						<s:GridColumn dataField="dataField1" headerText="Column 1"></s:GridColumn>
+						<s:GridColumn dataField="dataField2" headerText="Column 2"></s:GridColumn>
+						<s:GridColumn dataField="dataField3" headerText="Column 3"></s:GridColumn>
+					</s:ArrayList>
+				</s:columns>
+				<s:typicalItem>
+					<fx:Object dataField1="Sample Data" dataField2="Sample Data"
+							   dataField3="Sample Data"></fx:Object>
+				</s:typicalItem>
+				<s:ArrayList>
+					<fx:Object dataField1="data1" dataField2="data1" dataField3="data1"></fx:Object>
+					<fx:Object dataField1="data2" dataField2="data2" dataField3="data2"></fx:Object>
+					<fx:Object dataField1="data3" dataField2="data3" dataField3="data3"></fx:Object>
+					<fx:Object dataField1="data4" dataField2="data4" dataField3="data4"></fx:Object>
+				</s:ArrayList>
+			</s:DataGrid>
+			<s:Button id="addIncomeBtn" x="910" y="432" label="Bevétel hozzáadása"
+					  click="addIncomeBtn_clickHandler(event)"/>
+		</s:NavigatorContent>
+		
+		
+		<!--<s:NavigatorContent width="100%" height="100%" label="Kiadás">
+			<s:layout>
+				<s:VerticalLayout/>
+				
+				
+			</s:layout>
+			<s:Group>
+				<s:layout>
+					<s:HorizontalLayout/>
+				</s:layout>
+				<s:DataGrid id="out" width="949" height="567"
+							currentStateChange="{out.scroller.verticalScrollBar.value = out.scroller.verticalScrollBar.maximum}"
+							dataProvider="{outDataProvider}" requestedRowCount="4" textAlign="right"
+							doubleClick="currentState='state2';"
+							doubleClickEnabled="true">
+					<s:columns>
+						<s:ArrayList>
+							<s:GridColumn id="out_dateGC" width="{out.width/100*10}"
+										  dataField="out_date" formatter="{formatDateTime}"
+										  headerText="Mikor"
+										  includeIn="state1" 
+										 >
+								<s:itemRenderer>
+									<fx:Component>
+										
+										<s:GridItemRenderer>				
+											<s:DefaultGridItemRenderer/>
+										</s:GridItemRenderer>
+									</fx:Component>
+								</s:itemRenderer>
+							</s:GridColumn>
+							<s:GridColumn id="out_dateGC2" width="{out.width/100*10}"
+										  
+										  headerText="Mikor"
+										  includeIn="state2" >
+								<s:itemRenderer>
+									<fx:Component>								
+										<s:GridItemRenderer>				
+											<mx:DateField />
+										</s:GridItemRenderer>
+									</fx:Component>
+								</s:itemRenderer>
+							</s:GridColumn>
+							<s:GridColumn id="out_to_nameGC" dataField="out_to_name"
+										  headerText="Kinek"></s:GridColumn>
+							<s:GridColumn id="out_valueGC" dataField="out_value" headerText="Mennyit"></s:GridColumn>
+							<s:GridColumn id="category_nameGC" dataField="category_id"
+										  headerText="Kategória"></s:GridColumn>
+							<s:GridColumn id="out_commentGC" dataField="out_comment"
+										  headerText="Megjegyzés"></s:GridColumn>
+							
+						</s:ArrayList>
+					</s:columns>
+					
+				</s:DataGrid>
+				
+				<s:Panel id="outPanel">
+					<s:Form>
+						
+						
+						<mx:DateField id="out_date" selectedDate="{new Date()}" showToday="true"/>
+						
+						<s:TextInput id="out_to" prompt="Kinek"/>
+						
+						<s:TextInput id="out_value" prompt="Mennyit" restrict="0-9"/>
+						
+						<s:TextInput id="out_category" keyUp="out_category_changeHandler(event)"
+									 prompt="Kategória"/>
+						
+						<s:TextArea id="out_comment" prompt="Megjegyzés"/>
+						
+						<s:Button id="out_submit" label="Mentés"
+								  click="out_submit_clickHandler(event)"/>
+						
+					</s:Form>
+				</s:Panel>
+				
+			</s:Group>
+			
+			
+				
+				
+			
+		</s:NavigatorContent>-->
+		
+		<s:NavigatorContent width="100%" height="100%" label="Kiadás2">
+			<s:layout>
+				<s:VerticalLayout/>
+				
+				
+			</s:layout>
+			
+			<s:Group>
+				<s:layout>
+					<s:HorizontalLayout/>
+				</s:layout>
+			<mx:AdvancedDataGrid id="out_adg" includeIn="state1" width="938" height="412"
+								 dataProvider="{outDataProvider}" designViewDataType="flat"
+								 selectionMode="singleRow"
+								 change="{rowSelected(event)}">
+				<mx:columns>
+					<mx:AdvancedDataGridColumn dataField="out_date" headerText="Mikor"
+											   formatter="{formatDateTime}" />
+					<mx:AdvancedDataGridColumn dataField="out_name" headerText="Kinek"/>
+					<mx:AdvancedDataGridColumn dataField="out_value" headerText="Mennyit"/>
+					<mx:AdvancedDataGridColumn dataField="category_name" headerText="Kategória"/>
+					<mx:AdvancedDataGridColumn dataField="out_comment" headerText="Megjegyzés"/>
+				</mx:columns>
+			</mx:AdvancedDataGrid>
+			
+			
+			
+			<s:Panel id="outPanel">
+				<s:Form>
+					
+					
+					<mx:DateField id="out_date" selectedDate="{new Date()}" showToday="true"/>
+					
+					<s:TextInput id="out_to" prompt="Kinek"/>
+					
+					<s:TextInput id="out_value" prompt="Mennyit" restrict="0-9"/>
+					
+					<!--<s:TextInput id="out_category" keyUp="out_category_changeHandler(event)"
+								 prompt="Kategória"/>-->
+					<myComp:AutoCompleteTextInput id="acti" innerArrayCollection="{categoryDataProvider}"
+												  parameterName="category_name"/>
+					
+					<s:TextArea id="out_comment" prompt="Megjegyzés"/>
+					
+					<s:Button id="out_submit" label="Mentés"
+							  click="out_submit_clickHandler(event)"/>
+					
+				</s:Form>
+			</s:Panel>
+			</s:Group>
+			<s:Group>
+				<s:layout>
+					<s:HorizontalLayout/>
+				</s:layout>
+				
+				
+				
+				
+				<s:DataGrid id="out" includeIn="state2" width="949" height="567"
+							currentStateChange="{out.scroller.verticalScrollBar.value = out.scroller.verticalScrollBar.maximum}"
+							dataProvider="{outDataProvider}" doubleClick="currentState='state2';"
+							doubleClickEnabled="true" requestedRowCount="4" textAlign="right">
+					<s:columns>
+						<s:ArrayList>
+							<s:GridColumn id="out_dateGC2" width="{out.width/100*10}"
+										  headerText="Mikor">
+								<s:itemRenderer>
+									<fx:Component>								
+										<s:GridItemRenderer>				
+											<mx:DateField />
+										</s:GridItemRenderer>
+									</fx:Component>
+								</s:itemRenderer>
+							</s:GridColumn>
+							<s:GridColumn id="out_to_nameGC" dataField="out_to_name"
+										  headerText="Kinek"></s:GridColumn>
+							<s:GridColumn id="out_valueGC" dataField="out_value" headerText="Mennyit"></s:GridColumn>
+							<s:GridColumn id="category_nameGC" dataField="category_id"
+										  headerText="Kategória"></s:GridColumn>
+							<!--<s:GridColumn id="out_commentGC" dataField="out_comment"
+										  headerText="Megjegyzés"></s:GridColumn>-->
+							<s:GridColumn id="out_commentGC2" dataField="out_comment2"
+										  headerText="Megjegyzés2" editable="false">
+								<s:itemRenderer>
+									<fx:Component>
+										<mx:VBox>
+											<s:Button/>
+										</mx:VBox>
+											
+												
+											
+										
+									</fx:Component>
+								</s:itemRenderer>
+							</s:GridColumn>
+							
+						</s:ArrayList>
+					</s:columns>
+					
+				</s:DataGrid>
+				
+			</s:Group>
+			
+			
+			
+			
+			
+		</s:NavigatorContent>
+		
+		
+		<s:NavigatorContent width="100%" height="100%" label="Kategóriák">
+			<mx:AdvancedDataGrid id="adg_categories" includeIn="state1" x="10" y="10" width="623"
+								 height="381" designViewDataType="tree">
+				<mx:columns>
+					<mx:AdvancedDataGridColumn dataField="col1" headerText="Column 1"/>
+					<mx:AdvancedDataGridColumn dataField="col2" headerText="Column 2"/>
+					<mx:AdvancedDataGridColumn dataField="col3" headerText="Column 3"/>
+				</mx:columns>
+			</mx:AdvancedDataGrid>
+		</s:NavigatorContent>
+	</mx:ViewStack>
+	
+</s:WindowedApplication>
